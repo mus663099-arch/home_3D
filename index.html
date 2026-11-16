@@ -20,8 +20,32 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 const canvas=document.querySelector('#scene'),scene=new THREE.Scene();scene.background=new THREE.Color('#0b1728');const camera=new THREE.PerspectiveCamera(45,1,.1,200);camera.position.set(15,13,17);const renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;scene.add(new THREE.HemisphereLight(0xdcecff,0x33445c,2));const sun=new THREE.DirectionalLight(0xffffff,2.4);sun.position.set(8,15,10);sun.castShadow=true;scene.add(sun);const grid=new THREE.GridHelper(40,40,0x39516f,0x233750);grid.position.y=-.04;scene.add(grid);let model=new THREE.Group();scene.add(model);let cfg={w:12,d:10,rooms:3,floors:1,h:3},mode='3d',placeMode=null,openings=[];
 const material=c=>new THREE.MeshStandardMaterial({color:c,roughness:.8});function cube(x,y,z,w,h,d,m){let o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;model.add(o)}
-let layoutX=[],layoutZ=[.5],dragState=null;
-function layoutShape(){const cols=Math.ceil(cfg.rooms/2),rows=cfg.rooms>2?2:1;if(layoutX.length!==cols-1)layoutX=Array.from({length:cols-1},(_,i)=>(i+1)/cols);if(rows===1)layoutZ=[];else if(layoutZ.length!==rows-1)layoutZ=Array.from({length:rows-1},(_,i)=>(i+1)/rows);return {cols,rows}}
+let partitions=[],layoutKey='',dragState=null;
+function layoutShape(){
+ const key=[cfg.w,cfg.d,cfg.rooms].join(':');
+ if(key!==layoutKey){
+  partitions=[];layoutKey=key;
+  const rooms=[{x0:-cfg.w/2,x1:cfg.w/2,z0:-cfg.d/2,z1:cfg.d/2}];
+  for(let i=1;i<cfg.rooms;i++){
+   let idx=0;
+   for(let j=1;j<rooms.length;j++){
+    const a=rooms[j],b=rooms[idx];
+    if((a.x1-a.x0)*(a.z1-a.z0)>(b.x1-b.x0)*(b.z1-b.z0))idx=j;
+   }
+   const r=rooms.splice(idx,1)[0],rw=r.x1-r.x0,rd=r.z1-r.z0;
+   if(rw>=rd){
+    const pos=(r.x0+r.x1)/2;
+    partitions.push({axis:'x',pos,start:r.z0,end:r.z1,min:r.x0,max:r.x1});
+    rooms.push({...r,x1:pos},{...r,x0:pos});
+   }else{
+    const pos=(r.z0+r.z1)/2;
+    partitions.push({axis:'z',pos,start:r.x0,end:r.x1,min:r.z0,max:r.z1});
+    rooms.push({...r,z1:pos},{...r,z0:pos});
+   }
+  }
+ }
+ return partitions;
+}
 function draw(){model.clear();let {w,d,rooms:n,floors:f,h}=cfg;let wall=material('#e8e1d3'),floor=material('#b9a58a'),roof=material('#52677f'),glass=new THREE.MeshStandardMaterial({color:'#73c9e8',transparent:true,opacity:.5});function addOpeningMeshes(){
  openings.forEach(o=>{
   if(mode==='2d'){
@@ -48,12 +72,12 @@ function draw(){model.clear();let {w,d,rooms:n,floors:f,h}=cfg;let wall=material
   }
  });
 }
-if(mode==='2d'){let {cols,rows}=layoutShape();cube(0,.02,0,w,.08,d,floor);layoutX.forEach(t=>cube(-w/2+w*t,.16,0,.16,.28,d-.12,wall));layoutZ.forEach(t=>cube(0,.16,-d/2+d*t,w-.12,.28,.16,wall));for(let i=0;i<cols;i++){let x=-w/2+(i+.5)*w/cols;cube(x,.12,-d/2,Math.min(1.4,w/cols*.4),.15,.12,glass)}camera.position.set(0,Math.max(w,d)*1.3,.01);controls.target.set(0,0,0);controls.enableRotate=false;addOpeningMeshes();document.querySelector('#legend').innerHTML=placeMode?'Devor ustiga bosing — '+(placeMode==='door'?'eshik':'deraza')+' joylashtiriladi':'2D reja · devorlarni suring<br>Eshik va deraza qo‘shish mumkin';}
-else{for(let level=0;level<f;level++){let y=level*(h+.18);cube(0,y+.06,0,w,.12,d,floor);cube(0,y+h/2,-d/2,w,h,.18,wall);cube(0,y+h/2,d/2,w,h,.18,wall);cube(-w/2,y+h/2,0,.18,h,d,wall);cube(w/2,y+h/2,0,.18,h,d,wall);let {cols,rows}=layoutShape();layoutX.forEach(t=>cube(-w/2+w*t,y+h/2,0,.12,h,d-.2,wall));layoutZ.forEach(t=>cube(0,y+h/2,-d/2+d*t,w-.2,h,.12,wall));for(let i=0;i<cols;i++){let x=-w/2+(i+.5)*w/cols;cube(x,y+h*.57,-d/2-.02,Math.min(1.5,w/cols*.38),1.05,.08,glass);cube(x,y+h*.57,d/2+.02,Math.min(1.5,w/cols*.38),1.05,.08,glass)}if(level===f-1)cube(0,y+h+.12,0,w+.25,.24,d+.25,roof)}addOpeningMeshes();camera.position.set(w*1.25,h*f*4,d*1.45);controls.target.set(0,h*f*.35,0);controls.enableRotate=true;document.querySelector('#legend').innerHTML='Sichqoncha bilan aylantiring<br>G‘ildirak bilan yaqinlashtiring'}}
+if(mode==='2d'){layoutShape();cube(0,.02,0,w,.08,d,floor);partitions.forEach(p=>{if(p.axis==='x')cube(p.pos,.16,(p.start+p.end)/2,.16,.28,p.end-p.start,wall);else cube((p.start+p.end)/2,.16,p.pos,p.end-p.start,.28,.16,wall)});camera.position.set(0,Math.max(w,d)*1.3,.01);controls.target.set(0,0,0);controls.enableRotate=false;addOpeningMeshes();document.querySelector('#legend').innerHTML=placeMode?'Devor ustiga bosing — '+(placeMode==='door'?'eshik':'deraza')+' joylashtiriladi':'2D reja · devorlarni suring<br>Eshik va deraza qo‘shish mumkin';}
+else{for(let level=0;level<f;level++){let y=level*(h+.18);cube(0,y+.06,0,w,.12,d,floor);cube(0,y+h/2,-d/2,w,h,.18,wall);cube(0,y+h/2,d/2,w,h,.18,wall);cube(-w/2,y+h/2,0,.18,h,d,wall);cube(w/2,y+h/2,0,.18,h,d,wall);layoutShape();partitions.forEach(p=>{if(p.axis==='x')cube(p.pos,y+h/2,(p.start+p.end)/2,.12,h,p.end-p.start,wall);else cube((p.start+p.end)/2,y+h/2,p.pos,p.end-p.start,h,.12,wall)});if(level===f-1)cube(0,y+h+.12,0,w+.25,.24,d+.25,roof)}addOpeningMeshes();camera.position.set(w*1.25,h*f*4,d*1.45);controls.target.set(0,h*f*.35,0);controls.enableRotate=true;document.querySelector('#legend').innerHTML='Sichqoncha bilan aylantiring<br>G‘ildirak bilan yaqinlashtiring'}}
 const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2(),dragPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0),hitPoint=new THREE.Vector3();
 function planPoint(event){const r=canvas.getBoundingClientRect();pointer.x=((event.clientX-r.left)/r.width)*2-1;pointer.y=-((event.clientY-r.top)/r.height)*2+1;raycaster.setFromCamera(pointer,camera);return raycaster.ray.intersectPlane(dragPlane,hitPoint)?hitPoint.clone():null}
-canvas.addEventListener('pointerdown',e=>{if(mode!=='2d')return;const p=planPoint(e);if(!p)return;const {cols,rows}=layoutShape();let best=null,dist=.55;layoutX.forEach((t,i)=>{const x=-cfg.w/2+cfg.w*t,dd=Math.abs(p.x-x);if(dd<dist&&Math.abs(p.z)<cfg.d/2){best={axis:'x',index:i};dist=dd}});layoutZ.forEach((t,i)=>{const z=-cfg.d/2+cfg.d*t,dd=Math.abs(p.z-z);if(dd<dist&&Math.abs(p.x)<cfg.w/2){best={axis:'z',index:i};dist=dd}});if(best){dragState=best;controls.enabled=false;canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing'}});
-canvas.addEventListener('pointermove',e=>{if(mode!=='2d'){canvas.style.cursor='grab';return}const p=planPoint(e);if(!p)return;if(!dragState){const nearX=layoutX.some(t=>Math.abs(p.x-(-cfg.w/2+cfg.w*t))<.55),nearZ=layoutZ.some(t=>Math.abs(p.z-(-cfg.d/2+cfg.d*t))<.55);canvas.style.cursor=nearX||nearZ?'ew-resize':'default';return}if(dragState.axis==='x'){const min=.15;layoutX[dragState.index]=Math.max(min,Math.min(.85,(p.x+cfg.w/2)/cfg.w));layoutX.sort((a,b)=>a-b)}else{layoutZ[dragState.index]=Math.max(.15,Math.min(.85,(p.z+cfg.d/2)/cfg.d));layoutZ.sort((a,b)=>a-b)}draw()});
+canvas.addEventListener('pointerdown',e=>{if(mode!=='2d')return;const p=planPoint(e);if(!p)return;layoutShape();let best=null,dist=.55;partitions.forEach((wall,i)=>{const dd=wall.axis==='x'?Math.abs(p.x-wall.pos):Math.abs(p.z-wall.pos),along=wall.axis==='x'?p.z:p.x;if(dd<dist&&along>=wall.start-.25&&along<=wall.end+.25){best={index:i};dist=dd}});if(best){dragState=best;controls.enabled=false;canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing'}});
+canvas.addEventListener('pointermove',e=>{if(mode!=='2d'){canvas.style.cursor='grab';return}const p=planPoint(e);if(!p)return;if(!dragState){const near=partitions.some(w=>w.axis==='x'?Math.abs(p.x-w.pos)<.55&&p.z>=w.start-.2&&p.z<=w.end+.2:Math.abs(p.z-w.pos)<.55&&p.x>=w.start-.2&&p.x<=w.end+.2);canvas.style.cursor=near?'ew-resize':'default';return}const part=partitions[dragState.index],value=part.axis==='x'?p.x:p.z;part.pos=Math.max(part.min+.7,Math.min(part.max-.7,value));draw()});
 function stopDrag(){if(dragState){dragState=null;controls.enabled=true;canvas.style.cursor='default'}}
 
 function nearestWall(p){
@@ -63,8 +87,7 @@ function nearestWall(p){
  candidates.push({axis:'x',x:p.x,z:cfg.d/2,side:-.13,dist:Math.abs(p.z-cfg.d/2)});
  candidates.push({axis:'z',x:-cfg.w/2,z:p.z,side:.13,dist:Math.abs(p.x+cfg.w/2)});
  candidates.push({axis:'z',x:cfg.w/2,z:p.z,side:-.13,dist:Math.abs(p.x-cfg.w/2)});
- layoutX.forEach(t=>add('z',-cfg.w/2+cfg.w*t,p.z,.13));
- layoutZ.forEach(t=>add('x',p.x,-cfg.d/2+cfg.d*t,.13));
+ partitions.forEach(part=>{if(part.axis==='x'&&p.z>=part.start-.3&&p.z<=part.end+.3)add('z',part.pos,p.z,.13);else if(part.axis==='z'&&p.x>=part.start-.3&&p.x<=part.end+.3)add('x',p.x,part.pos,.13)});
  candidates.sort((a,b)=>a.dist-b.dist);
  const c=candidates[0];if(!c||c.dist>.65)return null;
  if(c.axis==='x')c.x=Math.max(-cfg.w/2+.65,Math.min(cfg.w/2-.65,p.x));
