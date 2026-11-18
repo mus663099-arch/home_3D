@@ -1,0 +1,16 @@
+const express=require('express'),helmet=require('helmet'),rateLimit=require('express-rate-limit'),crypto=require('crypto'),path=require('path');
+const app=express();app.use(helmet({contentSecurityPolicy:false}));app.use(express.json({limit:'100kb'}));app.use(express.static(path.join(__dirname,'public')));
+let apps=[
+{id:1,name:'UZB Calculator',category:'Asboblar',description:'Oddiy va qulay kalkulyator ilovasi.',version:'1.0',icon:'https://images.unsplash.com/photo-1587145820266-a5951ee6f620?w=256',download_url:'https://example.com/calculator.apk',featured:true},
+{id:2,name:'UZB Notes',category:'Hosildorlik',description:'Qaydlar va g‘oyalar uchun sodda ilova.',version:'1.0',icon:'https://images.unsplash.com/photo-1517842645767-c639042777db?w=256',download_url:'https://example.com/notes.apk',featured:true}
+];let nextId=3;const sessions=new Map();
+const loginLimit=rateLimit({windowMs:15*60*1000,limit:8,standardHeaders:true,legacyHeaders:false});
+function admin(req,res,next){const t=(req.headers.authorization||'').replace(/^Bearer /,'');if(!sessions.has(t)||sessions.get(t)<Date.now()){sessions.delete(t);return res.status(401).json({error:'Admin sifatida qayta kiring'});}next();}
+app.get('/api/apps',(req,res)=>{const q=(req.query.q||'').toLowerCase(),c=req.query.category||'';res.json(apps.filter(a=>(!q||a.name.toLowerCase().includes(q)||a.description.toLowerCase().includes(q))&&(!c||a.category===c)).sort((a,b)=>Number(b.featured)-Number(a.featured)));});
+app.post('/api/admin/login',loginLimit,(req,res)=>{if(req.body.password!==process.env.ADMIN_PASSWORD)return res.status(401).json({error:'Parol noto‘g‘ri'});const t=crypto.randomBytes(32).toString('hex');sessions.set(t,Date.now()+12*60*60*1000);res.json({token:t});});
+app.post('/api/admin/logout',admin,(req,res)=>{sessions.delete((req.headers.authorization||'').replace(/^Bearer /,''));res.json({ok:true});});
+app.post('/api/apps',admin,(req,res)=>{const a=validate(req.body);if(!a)return res.status(400).json({error:'Ilova nomi va https:// bilan boshlanuvchi yuklab olish havolasi kerak'});a.id=nextId++;apps.push(a);res.status(201).json(a);});
+app.put('/api/apps/:id',admin,(req,res)=>{const i=apps.findIndex(a=>a.id===Number(req.params.id)),a=validate(req.body);if(i<0)return res.sendStatus(404);if(!a)return res.status(400).json({error:'Ilova nomi va to‘g‘ri havola kerak'});apps[i]={...a,id:apps[i].id};res.json(apps[i]);});
+app.delete('/api/apps/:id',admin,(req,res)=>{apps=apps.filter(a=>a.id!==Number(req.params.id));res.json({ok:true});});
+function validate(b){if(!b.name||!/^https?:\/\//i.test(b.download_url||''))return null;return{name:String(b.name).slice(0,100),category:String(b.category||'Ilova').slice(0,40),description:String(b.description||'').slice(0,1200),version:String(b.version||'1.0').slice(0,30),icon:String(b.icon||'').slice(0,500),download_url:b.download_url,featured:!!b.featured};}
+app.get('/health',(_,res)=>res.json({ok:true,app:'UZB STORE'}));const port=process.env.PORT||3000;app.listen(port,'0.0.0.0',()=>console.log('UZB STORE running on '+port));
