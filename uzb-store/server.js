@@ -31,7 +31,7 @@ let apps=[
 {id:28,name:"Khan Academy",category:"Ta’lim",description:"Bepul ta’lim darslari.",version:'Google Play',icon:"https://www.google.com/s2/favicons?domain=khanacademy.org&sz=128",download_url:"https://play.google.com/store/apps/details?id=org.khanacademy.android",featured:false},
 {id:29,name:"Google Translate",category:"Ta’lim",description:"Matn va so‘zlarni tarjima qilish.",version:'Google Play',icon:"https://www.google.com/s2/favicons?domain=translate.google.com&sz=128",download_url:"https://play.google.com/store/apps/details?id=com.google.android.apps.translate",featured:false},
 {id:30,name:"Shazam",category:"Ko‘ngilochar",description:"Eshitilayotgan musiqani aniqlash.",version:'Google Play',icon:"https://www.google.com/s2/favicons?domain=shazam.com&sz=128",download_url:"https://play.google.com/store/apps/details?id=com.shazam.android",featured:false}
-];let nextId=3;const sessions=new Map();
+];let nextId=Math.max(0,...apps.map(a=>Number(a.id)||0))+1;const sessions=new Map();
 const loginLimit=rateLimit({windowMs:15*60*1000,limit:8,standardHeaders:true,legacyHeaders:false});
 function admin(req,res,next){const t=(req.headers.authorization||'').replace(/^Bearer /,'');if(!sessions.has(t)||sessions.get(t)<Date.now()){sessions.delete(t);return res.status(401).json({error:'Admin sifatida qayta kiring'});}next();}
 app.get('/api/apps',(req,res)=>{const q=(req.query.q||'').toLowerCase(),c=req.query.category||'';res.json(apps.filter(a=>(!q||a.name.toLowerCase().includes(q)||a.description.toLowerCase().includes(q))&&(!c||a.category===c)).sort((a,b)=>Number(b.featured)-Number(a.featured)));});
