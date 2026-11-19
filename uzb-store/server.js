@@ -34,11 +34,12 @@ let apps=[
 {id:31,name:"NOVA 3D Messenger",category:"Ko‘ngilochar",description:"NOVA 3D Messenger — foydalanuvchi taqdim etgan sahifa.",version:"Web",icon:"",download_url:"https://goalkick-arena.orender.com/messenger.html?utm_source=chatgpt.com",featured:true}
 ];let nextId=Math.max(0,...apps.map(a=>Number(a.id)||0))+1;const sessions=new Map();
 // F-Droid — ochiq kodli Android ilovalarining rasmiy repozitoriysi.
-let fdroidCache={at:0,items:[]};
+let fdroidCache={at:0,items:[]},fdroidFetch=null;
 async function getFdroidApps(){
   if(fdroidCache.items.length&&Date.now()-fdroidCache.at<1800000)return fdroidCache.items;
-  try{
-    const response=await fetch('https://f-droid.org/repo/index-v1.json',{headers:{'user-agent':'UZB-STORE/1.0'},signal:AbortSignal.timeout(20000)});
+  if(fdroidFetch)return fdroidFetch;
+  fdroidFetch=(async()=>{try{
+    const response=await fetch('https://f-droid.org/repo/index-v1.json',{headers:{'user-agent':'UZB-STORE/1.0'},signal:AbortSignal.timeout(90000)});
     if(!response.ok)throw new Error('F-Droid index unavailable');
     const index=await response.json(),items=[];
     for(const [packageName,versions] of Object.entries(index.packages||{})){
@@ -51,7 +52,8 @@ async function getFdroidApps(){
       items.push({id:'fdroid:'+packageName,name:String(meta.name).slice(0,100),category,description:String(meta.summary||meta.description||'Ochiq kodli Android ilovasi.').replace(/<[^>]*>/g,' ').slice(0,500),version:String(v.versionName||v.versionCode||'').slice(0,30),icon:icon?'https://f-droid.org/repo/icons-640/'+encodeURIComponent(icon):'https://f-droid.org/assets/fdroid-logo.svg',download_url:'https://f-droid.org/repo/'+encodeURIComponent(v.apkName),download_type:'apk',size:Number(v.size||0),source:'F-Droid',package_name:packageName,featured:false});
     }
     fdroidCache={at:Date.now(),items};return items;
-  }catch(error){console.error('F-Droid katalogi:',error.message);return fdroidCache.items;}
+  }catch(error){console.error('F-Droid katalogi:',error.message);return fdroidCache.items;}finally{fdroidFetch=null;}})();
+  return fdroidFetch;
 }
 const loginLimit=rateLimit({windowMs:15*60*1000,limit:8,standardHeaders:true,legacyHeaders:false});
 function admin(req,res,next){const t=(req.headers.authorization||'').replace(/^Bearer /,'');if(!sessions.has(t)||sessions.get(t)<Date.now()){sessions.delete(t);return res.status(401).json({error:'Admin sifatida qayta kiring'});}next();}
