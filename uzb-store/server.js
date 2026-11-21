@@ -2,13 +2,14 @@ const express=require('express'),helmet=require('helmet'),rateLimit=require('exp
 const app=express();app.use(helmet({contentSecurityPolicy:false}));app.use(express.json({limit:'100kb'}));app.use(express.static(path.join(__dirname,'public')));
 let apps=[];let nextId=Math.max(0,...apps.map(a=>Number(a.id)||0))+1;const sessions=new Map();
 // F-Droid — rasmiy ochiq kodli APK katalogi. Katalog yuklanishi server loglarida qayd etiladi.
+const termuxFallback={id:'fdroid:com.termux',name:'Termux',category:'Asboblar',description:'Android uchun terminal va Linux muhiti. Python, Git va boshqa paketlarni qo‘llab-quvvatlaydi.',version:'0.119.0-beta.3',icon:'',download_url:'https://f-droid.org/repo/com.termux_1022.apk',download_type:'apk',source:'F-Droid',package_name:'com.termux',featured:true};
 const fallbackFdroidApps=[
 {id:'fdroid:org.videolan.vlc',name:'VLC',category:'Ko‘ngilochar',description:'Video va audio fayllarni ko‘plab formatlarda ijro etuvchi bepul media pleer.',version:'3.7.2',icon:'',download_url:'https://f-droid.org/repo/org.videolan.vlc_13070206.apk',download_type:'apk',source:'F-Droid',featured:true},
 {id:'fdroid:org.fossify.gallery',name:'Fossify Gallery',category:'Asboblar',description:'Reklamasiz, ochiq kodli foto va video galereya hamda oddiy tahrirlash vositalari.',version:'1.14.2',icon:'',download_url:'https://f-droid.org/repo/org.fossify.gallery_40.apk',download_type:'apk',source:'F-Droid',featured:true},
 {id:'fdroid:de.danoeh.antennapod',name:'AntennaPod',category:'Ko‘ngilochar',description:'Podkastlarni tinglash, yuklab olish va boshqarish uchun ochiq kodli ilova.',version:'3.12.3',icon:'',download_url:'https://f-droid.org/repo/de.danoeh.antennapod_3120395.apk',download_type:'apk',source:'F-Droid',featured:false},
 {id:'fdroid:me.zhanghai.android.files',name:'Material Files',category:'Asboblar',description:'Fayllar, arxivlar va tarmoq xotiralarini boshqaruvchi Material Design fayl menejeri.',version:'1.7.5',icon:'',download_url:'https://f-droid.org/repo/me.zhanghai.android.files_40.apk',download_type:'apk',source:'F-Droid',featured:false}
 ];
-let fdroidCache={at:0,items:fallbackFdroidApps},fdroidFetch=null;
+let fdroidCache={at:0,items:[termuxFallback,...fallbackFdroidApps]},fdroidFetch=null;
 function getFdroidApps(){
   if(Date.now()-fdroidCache.at>1800000&&!fdroidFetch){
     fdroidFetch=(async()=>{try{
@@ -63,8 +64,8 @@ function getFdroidApps(){
       for(const item of selectedApps)item.featured=true;
       for(const item of selectedGames){item.category='O‘yin';item.featured=true;}
       fdroidCache={at:Date.now(),items:[...selectedApps,...selectedGames]};
-      if(!fdroidCache.items.length)fdroidCache={at:Date.now(),items:fallbackFdroidApps};
-    }catch(error){console.error('F-Droid katalogi:',error.message);fdroidCache={at:Date.now(),items:fallbackFdroidApps};}finally{fdroidFetch=null;}})();
+      if(!fdroidCache.items.length)fdroidCache={at:Date.now(),items:[termuxFallback,...fallbackFdroidApps]};
+    }catch(error){console.error('F-Droid katalogi:',error.message);fdroidCache={at:Date.now(),items:[termuxFallback,...fallbackFdroidApps]};}finally{fdroidFetch=null;}})();
   }
   return fdroidFetch ? fdroidFetch.then(()=>fdroidCache.items) : Promise.resolve(fdroidCache.items);
 }
