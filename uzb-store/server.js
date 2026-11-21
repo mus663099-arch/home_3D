@@ -1,27 +1,34 @@
 const express=require('express'),helmet=require('helmet'),rateLimit=require('express-rate-limit'),crypto=require('crypto'),path=require('path');
 const app=express();app.use(helmet({contentSecurityPolicy:false}));app.use(express.json({limit:'100kb'}));app.use(express.static(path.join(__dirname,'public')));
 let apps=[];let nextId=Math.max(0,...apps.map(a=>Number(a.id)||0))+1;const sessions=new Map();
-// F-Droid — ochiq kodli Android ilovalarining rasmiy repozitoriysi.
-let fdroidCache={at:0,items:[]},fdroidFetch=null;
-async function getFdroidApps(){
-  if(fdroidCache.items.length&&Date.now()-fdroidCache.at<1800000)return fdroidCache.items;
-  if(fdroidFetch)return fdroidFetch;
-  fdroidFetch=(async()=>{try{
-    const response=await fetch('https://f-droid.org/repo/index-v1.json',{headers:{'user-agent':'UZB-STORE/1.0'},signal:AbortSignal.timeout(90000)});
-    if(!response.ok)throw new Error('F-Droid index unavailable');
-    const index=await response.json(),items=[];
-    for(const [packageName,versions] of Object.entries(index.packages||{})){
-      if(!Array.isArray(versions)||!versions.length)continue;
-      const v=[...versions].sort((a,b)=>Number(b.versionCode||0)-Number(a.versionCode||0))[0],meta=(index.apps||{})[packageName]||{};
-      if(!v.apkName||!meta.name)continue;
-      const icon=meta.icon||'',cats=Array.isArray(meta.categories)?meta.categories:[];
-      const category=cats.some(x=>/game/i.test(x))?'O‘yin':cats.some(x=>/internet|social|multimedia/i.test(x))?'Ko‘ngilochar':cats.some(x=>/science|education/i.test(x))?'Ta’lim':'Asboblar';
-      const searchable=[meta.name,meta.summary,meta.description,cats.join(' ')].join(' ');if(/casino|betting|gambling|weapon|firearm|ammo|adult|porn|drug|cannabis|marijuana|tobacco|vape/i.test(searchable))continue;
-      items.push({id:'fdroid:'+packageName,name:String(meta.name).slice(0,100),category,description:String(meta.summary||meta.description||'Ochiq kodli Android ilovasi.').replace(/<[^>]*>/g,' ').slice(0,500),version:String(v.versionName||v.versionCode||'').slice(0,30),icon:icon?'https://f-droid.org/repo/icons-640/'+encodeURIComponent(icon):'https://f-droid.org/assets/fdroid-logo.svg',download_url:'https://f-droid.org/repo/'+encodeURIComponent(v.apkName),download_type:'apk',size:Number(v.size||0),source:'F-Droid',package_name:packageName,featured:false});
-    }
-    fdroidCache={at:Date.now(),items};return items;
-  }catch(error){console.error('F-Droid katalogi:',error.message);return fdroidCache.items;}finally{fdroidFetch=null;}})();
-  return fdroidFetch;
+// F-Droid — rasmiy ochiq kodli APK katalogi. Jonli indeks kechiksa ham zaxira APKlar ko‘rinadi.
+const fallbackFdroidApps=[
+{id:'fdroid:org.videolan.vlc',name:'VLC',category:'Ko‘ngilochar',description:'Video va audio fayllarni ko‘plab formatlarda ijro etuvchi bepul media pleer.',version:'3.7.2',icon:'',download_url:'https://f-droid.org/repo/org.videolan.vlc_13070206.apk',download_type:'apk',source:'F-Droid',featured:true},
+{id:'fdroid:org.fossify.gallery',name:'Fossify Gallery',category:'Asboblar',description:'Reklamasiz, ochiq kodli foto va video galereya hamda oddiy tahrirlash vositalari.',version:'1.14.2',icon:'',download_url:'https://f-droid.org/repo/org.fossify.gallery_40.apk',download_type:'apk',source:'F-Droid',featured:true},
+{id:'fdroid:de.danoeh.antennapod',name:'AntennaPod',category:'Ko‘ngilochar',description:'Podkastlarni tinglash, yuklab olish va boshqarish uchun ochiq kodli ilova.',version:'3.12.3',icon:'',download_url:'https://f-droid.org/repo/de.danoeh.antennapod_3120395.apk',download_type:'apk',source:'F-Droid',featured:false},
+{id:'fdroid:me.zhanghai.android.files',name:'Material Files',category:'Asboblar',description:'Fayllar, arxivlar va tarmoq xotiralarini boshqaruvchi Material Design fayl menejeri.',version:'1.7.5',icon:'',download_url:'https://f-droid.org/repo/me.zhanghai.android.files_40.apk',download_type:'apk',source:'F-Droid',featured:false}
+];
+let fdroidCache={at:0,items:fallbackFdroidApps},fdroidFetch=null;
+function getFdroidApps(){
+  if(Date.now()-fdroidCache.at>1800000&&!fdroidFetch){
+    fdroidFetch=(async()=>{try{
+      const response=await fetch('https://f-droid.org/repo/index-v1.json',{headers:{'user-agent':'UZB-STORE/1.0'},signal:AbortSignal.timeout(25000)});
+      if(!response.ok)throw new Error('F-Droid index unavailable');
+      const index=await response.json(),items=[];
+      for(const [packageName,versions] of Object.entries(index.packages||{})){
+        if(!Array.isArray(versions)||!versions.length)continue;
+        const v=[...versions].sort((a,b)=>Number(b.versionCode||0)-Number(a.versionCode||0))[0],meta=(index.apps||{})[packageName]||{};
+        if(!v.apkName||!meta.name)continue;
+        const icon=meta.icon||'',cats=Array.isArray(meta.categories)?meta.categories:[];
+        const category=cats.some(x=>/game/i.test(x))?'O‘yin':cats.some(x=>/internet|social|multimedia/i.test(x))?'Ko‘ngilochar':cats.some(x=>/science|education/i.test(x))?'Ta’lim':'Asboblar';
+        const searchable=[meta.name,meta.summary,meta.description,cats.join(' ')].join(' ');if(/casino|betting|gambling|weapon|firearm|ammo|adult|porn|drug|cannabis|marijuana|tobacco|vape/i.test(searchable))continue;
+        items.push({id:'fdroid:'+packageName,name:String(meta.name).slice(0,100),category,description:String(meta.summary||meta.description||'Ochiq kodli Android ilovasi.').replace(/<[^>]*>/g,' ').slice(0,500),version:String(v.versionName||v.versionCode||'').slice(0,30),icon:icon?'https://f-droid.org/repo/icons-640/'+encodeURIComponent(icon):'',download_url:'https://f-droid.org/repo/'+encodeURIComponent(v.apkName),download_type:'apk',size:Number(v.size||0),source:'F-Droid',package_name:packageName,featured:false});
+      }
+      if(items.length)fdroidCache={at:Date.now(),items};
+      else fdroidCache={at:Date.now(),items:fallbackFdroidApps};
+    }catch(error){console.error('F-Droid katalogi:',error.message);fdroidCache={at:Date.now(),items:fallbackFdroidApps};}finally{fdroidFetch=null;}})();
+  }
+  return Promise.resolve(fdroidCache.items);
 }
 const loginLimit=rateLimit({windowMs:15*60*1000,limit:8,standardHeaders:true,legacyHeaders:false});
 function admin(req,res,next){const t=(req.headers.authorization||'').replace(/^Bearer /,'');if(!sessions.has(t)||sessions.get(t)<Date.now()){sessions.delete(t);return res.status(401).json({error:'Admin sifatida qayta kiring'});}next();}
