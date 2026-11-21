@@ -13,20 +13,31 @@ let fdroidCache={at:0,items:[termuxFallback,...fallbackFdroidApps]},fdroidFetch=
 function getFdroidApps(){
   if(Date.now()-fdroidCache.at>1800000&&!fdroidFetch){
     fdroidFetch=(async()=>{try{
-      const response=await fetch('https://f-droid.org/repo/index-v1.json',{headers:{'user-agent':'UZB-STORE/1.0'},signal:AbortSignal.timeout(25000)});
-      if(!response.ok)throw new Error('F-Droid index unavailable');
-      const index=await response.json(),items=[];
-      // index-v1.json dagi apps — packageName bo‘yicha massiv; obyekt deb qarash 0 ta natija berardi.
-      const appMetaById=new Map((Array.isArray(index.apps)?index.apps:Object.values(index.apps||{})).filter(a=>a&&a.packageName).map(a=>[a.packageName,a]));
-      for(const [packageName,versions] of Object.entries(index.packages||{})){
-        if(!Array.isArray(versions)||!versions.length)continue;
-        const v=[...versions].sort((a,b)=>Number(b.versionCode||0)-Number(a.versionCode||0))[0],meta=appMetaById.get(packageName)||{};
-        if(!v.apkName||!meta.name)continue;
-        const icon=meta.icon||'',cats=Array.isArray(meta.categories)?meta.categories:[];
-        const category=cats.some(x=>/game/i.test(x))?'O‘yin':cats.some(x=>/internet|social|multimedia/i.test(x))?'Ko‘ngilochar':cats.some(x=>/science|education/i.test(x))?'Ta’lim':'Asboblar';
-        const searchable=[meta.name,meta.summary,meta.description,cats.join(' ')].join(' ');if(/casino|betting|gambling|weapon|firearm|ammo|adult|porn|drug|cannabis|marijuana|tobacco|vape/i.test(searchable))continue;
-        items.push({id:'fdroid:'+packageName,name:String(meta.name).slice(0,100),category,description:String(meta.summary||meta.description||'Ochiq kodli Android ilovasi.').replace(/<[^>]*>/g,' ').slice(0,500),version:String(v.versionName||v.versionCode||'').slice(0,30),icon:icon?'https://f-droid.org/repo/icons-640/'+encodeURIComponent(icon):'',download_url:'https://f-droid.org/repo/'+encodeURIComponent(v.apkName),download_type:'apk',size:Number(v.size||0),source:'F-Droid',package_name:packageName,featured:false});
+      const [mainResponse,archiveResponse]=await Promise.all([
+        fetch('https://f-droid.org/repo/index-v1.json',{headers:{'user-agent':'UZB-STORE/1.0'},signal:AbortSignal.timeout(30000)}),
+        fetch('https://f-droid.org/archive/index-v1.json',{headers:{'user-agent':'UZB-STORE/1.0'},signal:AbortSignal.timeout(30000)})
+      ]);
+      if(!mainResponse.ok)throw new Error('F-Droid main index unavailable');
+      const mainIndex=await mainResponse.json();
+      const archiveIndex=archiveResponse.ok?await archiveResponse.json():null;
+      const items=[],seenPackages=new Set();
+      // Rasmiy asosiy va arxiv indekslarini birlashtiramiz; faol versiya arxivdagi takrordan ustun.
+      function addRepository(index,isArchive=false){
+        if(!index)return;
+        const appMetaById=new Map((Array.isArray(index.apps)?index.apps:Object.values(index.apps||{})).filter(a=>a&&a.packageName).map(a=>[a.packageName,a]));
+        for(const [packageName,versions] of Object.entries(index.packages||{})){
+          if(seenPackages.has(packageName)||!Array.isArray(versions)||!versions.length)continue;
+          const v=[...versions].sort((a,b)=>Number(b.versionCode||0)-Number(a.versionCode||0))[0],meta=appMetaById.get(packageName)||{};
+          if(!v.apkName||!meta.name)continue;
+          const icon=meta.icon||'',cats=Array.isArray(meta.categories)?meta.categories:[];
+          const category=cats.some(x=>/game/i.test(x))?'O‘yin':cats.some(x=>/internet|social|multimedia/i.test(x))?'Ko‘ngilochar':cats.some(x=>/science|education/i.test(x))?'Ta’lim':'Asboblar';
+          const searchable=[meta.name,meta.summary,meta.description,cats.join(' ')].join(' ');if(/casino|betting|gambling|weapon|firearm|ammo|adult|porn|drug|cannabis|marijuana|tobacco|vape/i.test(searchable))continue;
+          seenPackages.add(packageName);
+          items.push({id:'fdroid:'+packageName,name:String(meta.name).slice(0,100),category,description:String(meta.summary||meta.description||'Ochiq kodli Android ilovasi.').replace(/<[^>]*>/g,' ').slice(0,500),version:String(v.versionName||v.versionCode||'').slice(0,30),icon:icon?'https://f-droid.org/repo/icons-640/'+encodeURIComponent(icon):'',download_url:'https://f-droid.org/'+(isArchive?'archive/':'repo/')+encodeURIComponent(v.apkName),download_type:'apk',size:Number(v.size||0),source:isArchive?'F-Droid Archive':'F-Droid',archived:isArchive,package_name:packageName,featured:false});
+        }
       }
+      addRepository(mainIndex,false);
+      addRepository(archiveIndex,true);
       // F-Droid asosiy repozitoriysidagi barcha mos APK yozuvlarini ko‘rsatamiz.
       // Taniqli ilovalar va o‘yinlar ro‘yxat boshida turadi; qolganlari alifbo tartibida.
       // Faqat indeksda haqiqatan mavjud APK yozuvlari qo‘shiladi.
@@ -72,7 +83,7 @@ function getFdroidApps(){
 const loginLimit=rateLimit({windowMs:15*60*1000,limit:8,standardHeaders:true,legacyHeaders:false});
 function admin(req,res,next){const t=(req.headers.authorization||'').replace(/^Bearer /,'');if(!sessions.has(t)||sessions.get(t)<Date.now()){sessions.delete(t);return res.status(401).json({error:'Admin sifatida qayta kiring'});}next();}
 app.get('/api/apps',async(req,res)=>{const q=(req.query.q||'').toLowerCase(),c=req.query.category||'';let catalog=[...apps,...await getFdroidApps()];if(req.query.admin!=='1')catalog=catalog.filter(a=>a.download_type==='apk');res.json(catalog.filter(a=>(!q||a.name.toLowerCase().includes(q)||a.description.toLowerCase().includes(q))&&(!c||a.category===c)).sort((a,b)=>Number(b.featured)-Number(a.featured)||a.name.localeCompare(b.name)));});
-app.get('/api/catalog/status',async(req,res)=>{const items=await getFdroidApps();res.json({source:'F-Droid',count:items.length,apps:items.filter(x=>x.category!=='O‘yin').length,games:items.filter(x=>x.category==='O‘yin').length,target:{apps:50,games:30},updatedAt:fdroidCache.at||null});});
+app.get('/api/catalog/status',async(req,res)=>{const items=await getFdroidApps();res.json({source:'F-Droid main + archive',count:items.length,active:items.filter(x=>!x.archived).length,archived:items.filter(x=>x.archived).length,apps:items.filter(x=>x.category!=='O‘yin').length,games:items.filter(x=>x.category==='O‘yin').length,updatedAt:fdroidCache.at||null});});
 app.post('/api/admin/login',loginLimit,(req,res)=>{if(req.body.password!==process.env.ADMIN_PASSWORD)return res.status(401).json({error:'Parol noto‘g‘ri'});const t=crypto.randomBytes(32).toString('hex');sessions.set(t,Date.now()+12*60*60*1000);res.json({token:t});});
 app.post('/api/admin/logout',admin,(req,res)=>{sessions.delete((req.headers.authorization||'').replace(/^Bearer /,''));res.json({ok:true});});
 app.post('/api/apps',admin,(req,res)=>{const a=validate(req.body);if(!a)return res.status(400).json({error:'Ilova nomi va https:// bilan boshlanuvchi yuklab olish havolasi kerak'});a.id=nextId++;apps.push(a);res.status(201).json(a);});
