@@ -15,9 +15,11 @@ function getFdroidApps(){
       const response=await fetch('https://f-droid.org/repo/index-v1.json',{headers:{'user-agent':'UZB-STORE/1.0'},signal:AbortSignal.timeout(25000)});
       if(!response.ok)throw new Error('F-Droid index unavailable');
       const index=await response.json(),items=[];
+      // index-v1.json dagi apps — packageName bo‘yicha massiv; obyekt deb qarash 0 ta natija berardi.
+      const appMetaById=new Map((Array.isArray(index.apps)?index.apps:Object.values(index.apps||{})).filter(a=>a&&a.packageName).map(a=>[a.packageName,a]));
       for(const [packageName,versions] of Object.entries(index.packages||{})){
         if(!Array.isArray(versions)||!versions.length)continue;
-        const v=[...versions].sort((a,b)=>Number(b.versionCode||0)-Number(a.versionCode||0))[0],meta=(index.apps||{})[packageName]||{};
+        const v=[...versions].sort((a,b)=>Number(b.versionCode||0)-Number(a.versionCode||0))[0],meta=appMetaById.get(packageName)||{};
         if(!v.apkName||!meta.name)continue;
         const icon=meta.icon||'',cats=Array.isArray(meta.categories)?meta.categories:[];
         const category=cats.some(x=>/game/i.test(x))?'O‘yin':cats.some(x=>/internet|social|multimedia/i.test(x))?'Ko‘ngilochar':cats.some(x=>/science|education/i.test(x))?'Ta’lim':'Asboblar';
