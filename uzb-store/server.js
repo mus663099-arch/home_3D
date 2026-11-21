@@ -13,15 +13,14 @@ let fdroidCache={at:0,items:[termuxFallback,...fallbackFdroidApps]},fdroidFetch=
 function getFdroidApps(){
   if(Date.now()-fdroidCache.at>1800000&&!fdroidFetch){
     fdroidFetch=(async()=>{try{
-      const [mainResponse,archiveResponse]=await Promise.all([
-        fetch('https://f-droid.org/repo/index-v1.json',{headers:{'user-agent':'UZB-STORE/1.0'},signal:AbortSignal.timeout(30000)}),
-        fetch('https://f-droid.org/archive/index-v1.json',{headers:{'user-agent':'UZB-STORE/1.0'},signal:AbortSignal.timeout(30000)})
-      ]);
+      // Free Render xotirasi cheklangan: asosiy indeksni bittalab yuklaymiz.
+      // Arxiv indeksi alohida juda katta bo‘lishi mumkin va 512 MiB xizmatni o‘chirib qo‘yadi.
+      const mainResponse=await fetch('https://f-droid.org/repo/index-v1.json',{headers:{'user-agent':'UZB-STORE/1.0'},signal:AbortSignal.timeout(60000)});
       if(!mainResponse.ok)throw new Error('F-Droid main index unavailable');
       const mainIndex=await mainResponse.json();
-      const archiveIndex=archiveResponse.ok?await archiveResponse.json():null;
+      const archiveIndex=null;
       const items=[],seenPackages=new Set();
-      // Rasmiy asosiy va arxiv indekslarini birlashtiramiz; faol versiya arxivdagi takrordan ustun.
+      // Asosiy rasmiy indeksdagi barcha mos APK yozuvlarini yig‘amiz.
       function addRepository(index,isArchive=false){
         if(!index)return;
         const appMetaById=new Map((Array.isArray(index.apps)?index.apps:Object.values(index.apps||{})).filter(a=>a&&a.packageName).map(a=>[a.packageName,a]));
@@ -37,7 +36,7 @@ function getFdroidApps(){
         }
       }
       addRepository(mainIndex,false);
-      addRepository(archiveIndex,true);
+      // Arxiv indeksini Free xizmat xotirasini himoya qilish uchun yuklamaymiz.
       // F-Droid asosiy repozitoriysidagi barcha mos APK yozuvlarini ko‘rsatamiz.
       // Taniqli ilovalar va o‘yinlar ro‘yxat boshida turadi; qolganlari alifbo tartibida.
       // Faqat indeksda haqiqatan mavjud APK yozuvlari qo‘shiladi.
@@ -83,7 +82,7 @@ function getFdroidApps(){
 const loginLimit=rateLimit({windowMs:15*60*1000,limit:8,standardHeaders:true,legacyHeaders:false});
 function admin(req,res,next){const t=(req.headers.authorization||'').replace(/^Bearer /,'');if(!sessions.has(t)||sessions.get(t)<Date.now()){sessions.delete(t);return res.status(401).json({error:'Admin sifatida qayta kiring'});}next();}
 app.get('/api/apps',async(req,res)=>{const q=(req.query.q||'').toLowerCase(),c=req.query.category||'';let catalog=[...apps,...await getFdroidApps()];if(req.query.admin!=='1')catalog=catalog.filter(a=>a.download_type==='apk');res.json(catalog.filter(a=>(!q||a.name.toLowerCase().includes(q)||a.description.toLowerCase().includes(q))&&(!c||a.category===c)).sort((a,b)=>Number(b.featured)-Number(a.featured)||a.name.localeCompare(b.name)));});
-app.get('/api/catalog/status',async(req,res)=>{const items=await getFdroidApps();res.json({source:'F-Droid main + archive',count:items.length,active:items.filter(x=>!x.archived).length,archived:items.filter(x=>x.archived).length,apps:items.filter(x=>x.category!=='O‘yin').length,games:items.filter(x=>x.category==='O‘yin').length,updatedAt:fdroidCache.at||null});});
+app.get('/api/catalog/status',async(req,res)=>{const items=await getFdroidApps();res.json({source:'F-Droid main',count:items.length,active:items.filter(x=>!x.archived).length,archived:items.filter(x=>x.archived).length,apps:items.filter(x=>x.category!=='O‘yin').length,games:items.filter(x=>x.category==='O‘yin').length,updatedAt:fdroidCache.at||null});});
 app.post('/api/admin/login',loginLimit,(req,res)=>{if(req.body.password!==process.env.ADMIN_PASSWORD)return res.status(401).json({error:'Parol noto‘g‘ri'});const t=crypto.randomBytes(32).toString('hex');sessions.set(t,Date.now()+12*60*60*1000);res.json({token:t});});
 app.post('/api/admin/logout',admin,(req,res)=>{sessions.delete((req.headers.authorization||'').replace(/^Bearer /,''));res.json({ok:true});});
 app.post('/api/apps',admin,(req,res)=>{const a=validate(req.body);if(!a)return res.status(400).json({error:'Ilova nomi va https:// bilan boshlanuvchi yuklab olish havolasi kerak'});a.id=nextId++;apps.push(a);res.status(201).json(a);});
