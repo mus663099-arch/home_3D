@@ -1,7 +1,7 @@
 const express=require('express'),helmet=require('helmet'),rateLimit=require('express-rate-limit'),crypto=require('crypto'),path=require('path');
 const app=express();app.use(helmet({contentSecurityPolicy:false}));app.use(express.json({limit:'100kb'}));app.use(express.static(path.join(__dirname,'public')));
 let apps=[];let nextId=Math.max(0,...apps.map(a=>Number(a.id)||0))+1;const sessions=new Map();
-// F-Droid — rasmiy ochiq kodli APK katalogi. Jonli indeks kechiksa ham zaxira APKlar ko‘rinadi.
+// F-Droid — rasmiy ochiq kodli APK katalogi. Katalog yuklanishi server loglarida qayd etiladi.
 const fallbackFdroidApps=[
 {id:'fdroid:org.videolan.vlc',name:'VLC',category:'Ko‘ngilochar',description:'Video va audio fayllarni ko‘plab formatlarda ijro etuvchi bepul media pleer.',version:'3.7.2',icon:'',download_url:'https://f-droid.org/repo/org.videolan.vlc_13070206.apk',download_type:'apk',source:'F-Droid',featured:true},
 {id:'fdroid:org.fossify.gallery',name:'Fossify Gallery',category:'Asboblar',description:'Reklamasiz, ochiq kodli foto va video galereya hamda oddiy tahrirlash vositalari.',version:'1.14.2',icon:'',download_url:'https://f-droid.org/repo/org.fossify.gallery_40.apk',download_type:'apk',source:'F-Droid',featured:true},
