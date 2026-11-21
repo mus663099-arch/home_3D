@@ -27,43 +27,37 @@ function getFdroidApps(){
         items.push({id:'fdroid:'+packageName,name:String(meta.name).slice(0,100),category,description:String(meta.summary||meta.description||'Ochiq kodli Android ilovasi.').replace(/<[^>]*>/g,' ').slice(0,500),version:String(v.versionName||v.versionCode||'').slice(0,30),icon:icon?'https://f-droid.org/repo/icons-640/'+encodeURIComponent(icon):'',download_url:'https://f-droid.org/repo/'+encodeURIComponent(v.apkName),download_type:'apk',size:Number(v.size||0),source:'F-Droid',package_name:packageName,featured:false});
       }
       // UZB STORE tanlangan katalogi: 50 ta ilova va 30 ta o‘yin.
+      // Katalogni taniqli va amalda mavjud F-Droid nomlari bo‘yicha tartiblaymiz.
+      // Reyting faqat indeksdan topilgan ilovalarga qo‘llanadi — soxta APK yozuvlari yaratilmaydi.
       const appPriority=[
-        'org.fdroid.fdroid','com.termux','org.mozilla.fennec_fdroid','org.videolan.vlc',
-        'org.kde.kdeconnect_tp','org.fossify.filemanager','org.fossify.gallery',
-        'org.fossify.contacts','org.fossify.calendar','org.fossify.messages',
-        'de.danoeh.antennapod','com.simplemobiletools.notes.pro','org.tasks',
-        'com.aurora.store','com.nononsenseapps.feeder','org.schabi.newpipe',
-        'com.looker.droidify','com.bnyro.clock','com.github.muellerma.coffee',
-        'com.ichi2.anki','org.gnucash.android','com.owncloud.android',
-        'com.nextcloud.client','org.microg.gms','com.kunzisoft.keepass.libre',
-        'org.passwordmaker.android','com.fsck.k9','org.thoughtcrime.securesms',
-        'org.telegram.messenger','com.discord','com.github.axet.audiorecorder',
-        'com.maxfour.music','org.musicbrainz.picard','com.simplemobiletools.camera',
-        'com.simplemobiletools.filemanager.pro','com.simplemobiletools.calendar.pro',
-        'com.simplemobiletools.contacts.pro','com.simplemobiletools.gallery.pro',
-        'com.simplemobiletools.smsmessenger.pro','com.simplemobiletools.voicerecorder.pro',
-        'org.wikipedia','org.torproject.android','org.bromite.bromite',
-        'com.github.k1rakishou.chan','org.dslul.openboard.inputmethod.latin',
-        'com.github.catfriend1.syncthingandroid','com.machiav3lli.fdroid',
-        'org.y20k.transistor','com.github.dfa.diaspora_android','com.ichi2.anki'
+        /^F-Droid$/i,/^Termux$/i,/Firefox/i,/^VLC$/i,/KDE Connect/i,
+        /Fossify.*(File|Gallery)/i,/AntennaPod/i,/NewPipe/i,/Aurora Store/i,
+        /OsmAnd/i,/Organic Maps/i,/K-9 Mail|Thunderbird/i,/Signal/i,/Element/i,
+        /Tor Browser/i,/Wikipedia/i,/Tasks(\.org)?/i,/Nextcloud/i,/OpenBoard/i,
+        /Syncthing/i,/Feeder/i,/Droid-?ify/i,/AnkiDroid/i,/KeePassDX/i,/Aegis/i,
+        /AdAway/i,/Shelter/i,/DAVx/i,/Markor/i,/Material Files/i,/Transistor/i,
+        /OpenTracks/i,/Mastodon/i,/Librera/i,/KOReader/i,/Kiwix/i,/Open Camera/i,
+        /Fennec/i,/Mull/i,/Fossify/i,/Calculator/i,/Calendar/i,/Notes/i,/Recorder/i,
+        /File Manager/i,/Gallery/i
       ];
       const gamePriority=[
-        'com.shatteredpixel.shatteredpixeldungeon','net.minetest.minetest',
-        'org.catrobat.catroid','com.kolbasa.pixelwheel','com.gianlu.aria2app'
+        /Unciv/i,/Shattered Pixel Dungeon/i,/Mindustry/i,/Luanti|Minetest/i,
+        /OpenTTD/i,/SuperTuxKart/i,/Battle for Wesnoth/i,/Endless Sky/i,
+        /Simon Tatham.*Puzzles/i,/Sudoku/i,/Chess/i,/Solitaire/i,/2048/i,
+        /Tetris/i,/Pac-?Man/i,/Pixel Dungeon/i,/OpenMW/i,/ScummVM/i,
+        /RetroArch/i,/Puzzle/i,/Tower Defense/i,/Roguelike/i
       ];
-      const rank=new Map(appPriority.map((id,i)=>[id,i]));
-      const gameRank=new Map(gamePriority.map((id,i)=>[id,i]));
+      const priorityScore=(item,patterns)=>{
+        const i=patterns.findIndex(pattern=>pattern.test(item.name)||pattern.test(item.package_name||''));
+        return i<0?10000:i;
+      };
       const isGame=x=>x.category==='O‘yin';
-      const appPool=items.filter(x=>!isGame(x)).sort((a,b)=>{
-        const ar=rank.has(a.package_name)?rank.get(a.package_name):9999;
-        const br=rank.has(b.package_name)?rank.get(b.package_name):9999;
-        return ar-br||a.name.localeCompare(b.name);
-      });
-      const gamePool=items.filter(isGame).sort((a,b)=>{
-        const ar=gameRank.has(a.package_name)?gameRank.get(a.package_name):9999;
-        const br=gameRank.has(b.package_name)?gameRank.get(b.package_name):9999;
-        return ar-br||a.name.localeCompare(b.name);
-      });
+      const appPool=items.filter(x=>!isGame(x)).sort((a,b)=>
+        priorityScore(a,appPriority)-priorityScore(b,appPriority)||a.name.localeCompare(b.name)
+      );
+      const gamePool=items.filter(isGame).sort((a,b)=>
+        priorityScore(a,gamePriority)-priorityScore(b,gamePriority)||a.name.localeCompare(b.name)
+      );
       const selectedApps=appPool.slice(0,50);
       const selectedGames=gamePool.slice(0,30);
       for(const item of selectedApps)item.featured=true;
