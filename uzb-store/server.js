@@ -24,16 +24,16 @@ function getFdroidApps(){
         const searchable=[meta.name,meta.summary,meta.description,cats.join(' ')].join(' ');if(/casino|betting|gambling|weapon|firearm|ammo|adult|porn|drug|cannabis|marijuana|tobacco|vape/i.test(searchable))continue;
         items.push({id:'fdroid:'+packageName,name:String(meta.name).slice(0,100),category,description:String(meta.summary||meta.description||'Ochiq kodli Android ilovasi.').replace(/<[^>]*>/g,' ').slice(0,500),version:String(v.versionName||v.versionCode||'').slice(0,30),icon:icon?'https://f-droid.org/repo/icons-640/'+encodeURIComponent(icon):'',download_url:'https://f-droid.org/repo/'+encodeURIComponent(v.apkName),download_type:'apk',size:Number(v.size||0),source:'F-Droid',package_name:packageName,featured:false});
       }
-      if(items.length)fdroidCache={at:Date.now(),items};
+      if(items.length)fdroidCache={at:Date.now(),items:items.sort((a,b)=>a.name.localeCompare(b.name)).slice(0,100)};
       else fdroidCache={at:Date.now(),items:fallbackFdroidApps};
     }catch(error){console.error('F-Droid katalogi:',error.message);fdroidCache={at:Date.now(),items:fallbackFdroidApps};}finally{fdroidFetch=null;}})();
   }
-  return Promise.resolve(fdroidCache.items);
+  return fdroidFetch ? fdroidFetch.then(()=>fdroidCache.items) : Promise.resolve(fdroidCache.items);
 }
 const loginLimit=rateLimit({windowMs:15*60*1000,limit:8,standardHeaders:true,legacyHeaders:false});
 function admin(req,res,next){const t=(req.headers.authorization||'').replace(/^Bearer /,'');if(!sessions.has(t)||sessions.get(t)<Date.now()){sessions.delete(t);return res.status(401).json({error:'Admin sifatida qayta kiring'});}next();}
 app.get('/api/apps',async(req,res)=>{const q=(req.query.q||'').toLowerCase(),c=req.query.category||'';let catalog=[...apps,...await getFdroidApps()];if(req.query.admin!=='1')catalog=catalog.filter(a=>a.download_type==='apk');res.json(catalog.filter(a=>(!q||a.name.toLowerCase().includes(q)||a.description.toLowerCase().includes(q))&&(!c||a.category===c)).sort((a,b)=>Number(b.featured)-Number(a.featured)||a.name.localeCompare(b.name)));});
-app.get('/api/catalog/status',async(req,res)=>{const items=await getFdroidApps();res.json({source:'F-Droid',count:items.length,updatedAt:fdroidCache.at||null});});
+app.get('/api/catalog/status',async(req,res)=>{const items=await getFdroidApps();res.json({source:'F-Droid',count:items.length,target:100,updatedAt:fdroidCache.at||null});});
 app.post('/api/admin/login',loginLimit,(req,res)=>{if(req.body.password!==process.env.ADMIN_PASSWORD)return res.status(401).json({error:'Parol noto‘g‘ri'});const t=crypto.randomBytes(32).toString('hex');sessions.set(t,Date.now()+12*60*60*1000);res.json({token:t});});
 app.post('/api/admin/logout',admin,(req,res)=>{sessions.delete((req.headers.authorization||'').replace(/^Bearer /,''));res.json({ok:true});});
 app.post('/api/apps',admin,(req,res)=>{const a=validate(req.body);if(!a)return res.status(400).json({error:'Ilova nomi va https:// bilan boshlanuvchi yuklab olish havolasi kerak'});a.id=nextId++;apps.push(a);res.status(201).json(a);});
