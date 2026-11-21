@@ -27,9 +27,9 @@ function getFdroidApps(){
         const searchable=[meta.name,meta.summary,meta.description,cats.join(' ')].join(' ');if(/casino|betting|gambling|weapon|firearm|ammo|adult|porn|drug|cannabis|marijuana|tobacco|vape/i.test(searchable))continue;
         items.push({id:'fdroid:'+packageName,name:String(meta.name).slice(0,100),category,description:String(meta.summary||meta.description||'Ochiq kodli Android ilovasi.').replace(/<[^>]*>/g,' ').slice(0,500),version:String(v.versionName||v.versionCode||'').slice(0,30),icon:icon?'https://f-droid.org/repo/icons-640/'+encodeURIComponent(icon):'',download_url:'https://f-droid.org/repo/'+encodeURIComponent(v.apkName),download_type:'apk',size:Number(v.size||0),source:'F-Droid',package_name:packageName,featured:false});
       }
-      // UZB STORE tanlangan katalogi: 50 ta ilova va 30 ta o‘yin.
-      // Katalogni taniqli va amalda mavjud F-Droid nomlari bo‘yicha tartiblaymiz.
-      // Reyting faqat indeksdan topilgan ilovalarga qo‘llanadi — soxta APK yozuvlari yaratilmaydi.
+      // F-Droid asosiy repozitoriysidagi barcha mos APK yozuvlarini ko‘rsatamiz.
+      // Taniqli ilovalar va o‘yinlar ro‘yxat boshida turadi; qolganlari alifbo tartibida.
+      // Faqat indeksda haqiqatan mavjud APK yozuvlari qo‘shiladi.
       const appPriority=[
         /^F-Droid$/i,/^Termux$/i,/Firefox/i,/^VLC$/i,/KDE Connect/i,
         /Fossify.*(File|Gallery)/i,/AntennaPod/i,/NewPipe/i,/Aurora Store/i,
@@ -59,8 +59,8 @@ function getFdroidApps(){
       const gamePool=items.filter(isGame).sort((a,b)=>
         priorityScore(a,gamePriority)-priorityScore(b,gamePriority)||a.name.localeCompare(b.name)
       );
-      const selectedApps=appPool.slice(0,50);
-      const selectedGames=gamePool.slice(0,30);
+      const selectedApps=appPool;
+      const selectedGames=gamePool;
       for(const item of selectedApps)item.featured=true;
       for(const item of selectedGames){item.category='O‘yin';item.featured=true;}
       fdroidCache={at:Date.now(),items:[...selectedApps,...selectedGames]};
