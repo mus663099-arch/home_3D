@@ -24,8 +24,26 @@ function getFdroidApps(){
         const searchable=[meta.name,meta.summary,meta.description,cats.join(' ')].join(' ');if(/casino|betting|gambling|weapon|firearm|ammo|adult|porn|drug|cannabis|marijuana|tobacco|vape/i.test(searchable))continue;
         items.push({id:'fdroid:'+packageName,name:String(meta.name).slice(0,100),category,description:String(meta.summary||meta.description||'Ochiq kodli Android ilovasi.').replace(/<[^>]*>/g,' ').slice(0,500),version:String(v.versionName||v.versionCode||'').slice(0,30),icon:icon?'https://f-droid.org/repo/icons-640/'+encodeURIComponent(icon):'',download_url:'https://f-droid.org/repo/'+encodeURIComponent(v.apkName),download_type:'apk',size:Number(v.size||0),source:'F-Droid',package_name:packageName,featured:false});
       }
-      if(items.length)fdroidCache={at:Date.now(),items:items.sort((a,b)=>a.name.localeCompare(b.name)).slice(0,100)};
-      else fdroidCache={at:Date.now(),items:fallbackFdroidApps};
+      // Muhim kundalik ilovalar va ommabop ochiq kodli o‘yinlarga ustuvorlik.
+      const priority=[
+        'org.fdroid.fdroid','com.termux','org.mozilla.fennec_fdroid','org.videolan.vlc',
+        'org.kde.kdeconnect_tp','org.fossify.filemanager','org.fossify.gallery',
+        'org.fossify.contacts','org.fossify.calendar','org.fossify.messages',
+        'de.danoeh.antennapod','com.shatteredpixel.shatteredpixeldungeon',
+        'net.minetest.minetest'
+      ];
+      const rank=new Map(priority.map((id,i)=>[id,i]));
+      for(const item of items){
+        const isGame=item.category==='O‘yin';
+        item.featured=rank.has(item.package_name)||isGame;
+        if(isGame)item.category='O‘yin';
+      }
+      const curated=items.filter(x=>rank.has(x.package_name));
+      const games=items.filter(x=>x.category==='O‘yin'&&!rank.has(x.package_name)).sort((a,b)=>a.name.localeCompare(b.name));
+      const others=items.filter(x=>x.category!=='O‘yin'&&!rank.has(x.package_name)).sort((a,b)=>a.name.localeCompare(b.name));
+      curated.sort((a,b)=>rank.get(a.package_name)-rank.get(b.package_name));
+      fdroidCache={at:Date.now(),items:[...curated,...games,...others].slice(0,100)};
+      if(!fdroidCache.items.length)fdroidCache={at:Date.now(),items:fallbackFdroidApps};
     }catch(error){console.error('F-Droid katalogi:',error.message);fdroidCache={at:Date.now(),items:fallbackFdroidApps};}finally{fdroidFetch=null;}})();
   }
   return fdroidFetch ? fdroidFetch.then(()=>fdroidCache.items) : Promise.resolve(fdroidCache.items);
