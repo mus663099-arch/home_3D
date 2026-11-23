@@ -10,21 +10,34 @@ const fallbackFdroidApps=[
 {id:'fdroid:me.zhanghai.android.files',name:'Material Files',category:'Asboblar',description:'Fayllar, arxivlar va tarmoq xotiralarini boshqaruvchi Material Design fayl menejeri.',version:'1.7.5',icon:'',download_url:'https://f-droid.org/repo/me.zhanghai.android.files_40.apk',download_type:'apk',source:'F-Droid',featured:false}
 ];
 // Mashhur mobil o‘yinlar: xavfsizligi uchun faqat ishlab chiquvchilarning rasmiy sahifalariga yo‘naltiramiz.
+// Mashhur mobil o‘yinlar: APK bevosita mavjud bo‘lmasa, ishlab chiquvchining rasmiy sahifasiga yo‘naltiramiz.
 const curatedGames=[
-  ['PUBG MOBILE','Ochiq dunyo va jamoaviy battle royale janglari.','https://www.pubgmobile.com/','pubgmobile.com'],
+  ['PUBG MOBILE','Battle royale va jamoaviy janglar.','https://www.pubgmobile.com/','pubgmobile.com'],
   ['Garena Free Fire','Tezkor battle royale mobil o‘yini.','https://ff.garena.com/','ff.garena.com'],
-  ['Roblox','Millionlab foydalanuvchi yaratgan tajribalar va o‘yinlar platformasi.','https://www.roblox.com/','roblox.com'],
+  ['Roblox','Foydalanuvchilar yaratgan millionlab o‘yinlar platformasi.','https://www.roblox.com/','roblox.com'],
   ['Minecraft','Ochiq dunyo, qurish va sarguzasht o‘yini.','https://www.minecraft.net/','minecraft.net'],
-  ['Call of Duty: Mobile','Ko‘p o‘yinchi rejimlari va battle royale janglari.','https://www.callofduty.com/mobile','callofduty.com'],
-  ['Brawl Stars','Tezkor jamoaviy janglar va turli o‘yin rejimlari.','https://supercell.com/en/games/brawlstars/','supercell.com'],
-  ['Clash of Clans','Qishloq qurish, strategiya va klan janglari.','https://supercell.com/en/games/clashofclans/','supercell.com'],
+  ['Call of Duty: Mobile','Ko‘p o‘yinchi rejimlari va battle royale.','https://www.callofduty.com/mobile','callofduty.com'],
+  ['Brawl Stars','Tezkor jamoaviy janglar.','https://supercell.com/en/games/brawlstars/','supercell.com'],
+  ['Clash of Clans','Qishloq qurish va klan strategiyasi.','https://supercell.com/en/games/clashofclans/','supercell.com'],
   ['Clash Royale','Kartalar asosidagi real vaqt strategiyasi.','https://supercell.com/en/games/clashroyale/','supercell.com'],
   ['Mobile Legends: Bang Bang','5 ga 5 jamoaviy MOBA jangi.','https://www.mobilelegends.com/','mobilelegends.com'],
-  ['eFootball','Futbol simulyatori va jamoaviy musobaqalar.','https://www.konami.com/efootball/','konami.com'],
-  ['Asphalt Legends','Tezlik va poyga avtomobillari o‘yini.','https://asphaltlegends.com/','asphaltlegends.com'],
+  ['eFootball','Futbol simulyatori.','https://www.konami.com/efootball/','konami.com'],
+  ['Asphalt Legends','Avtomobil poygasi.','https://asphaltlegends.com/','asphaltlegends.com'],
   ['Stumble Guys','Ko‘p o‘yinchili to‘siqlar poygasi.','https://www.stumbleguys.com/','stumbleguys.com'],
-  ['EA SPORTS FC Mobile','Futbol jamoasini tuzish va boshqarish o‘yini.','https://www.ea.com/games/ea-sports-fc/fc-mobile','ea.com']
-].map(([name,description,download_url,domain],i)=>({id:'official-game:'+i,name,category:'O‘yin',description,version:'Rasmiy',icon:'https://www.google.com/s2/favicons?domain='+domain+'&sz=128',download_url,download_type:'link',source:'Rasmiy sayt',featured:i<6}));
+  ['EA SPORTS FC Mobile','Futbol jamoasini tuzish va boshqarish.','https://www.ea.com/games/ea-sports-fc/fc-mobile','ea.com'],
+  ['Candy Crush Saga','Rangli boshqotirma va match-3 o‘yini.','https://www.king.com/game/candycrush','king.com'],
+  ['Royal Match','Qirollik saroyini bezash boshqotirmasi.','https://dreamgames.com/royalmatch','dreamgames.com'],
+  ['8 Ball Pool','Onlayn billiard o‘yini.','https://www.miniclip.com/games/8-ball-pool-multiplayer/en/','miniclip.com'],
+  ['Township','Shahar va ferma qurish o‘yini.','https://www.playrix.com/games/township','playrix.com'],
+  ['Subway Surfers','Cheksiz yugurish arkadasi.','https://sybogames.com/subway-surfers/','sybogames.com'],
+  ['Dream League Soccer','Futbol klubi va jamoa boshqaruvi.','https://www.ftgames.com/','ftgames.com'],
+  ['Standoff 2','Jamoaviy onlayn harakatli o‘yin.','https://standoff2.com/','standoff2.com'],
+  ['Toca Boca World','Ijodiy virtual dunyo va hikoyalar.','https://tocaboca.com/','tocaboca.com'],
+  ['Pokémon GO','Haqiqiy joylar bilan bog‘langan sarguzasht o‘yini.','https://pokemongolive.com/','pokemongolive.com'],
+  ['Among Us','Jamoaviy sir va vazifalar o‘yini.','https://www.innersloth.com/games/among-us/','innersloth.com'],
+  ['My Talking Tom 2','Virtual uy hayvoni va mini-o‘yinlar.','https://talkingtomandfriends.com/','talkingtomandfriends.com'],
+  ['Ludo King','Do‘stlar bilan ludo stol o‘yini.','https://ludoking.com/','ludoking.com']
+].map(([name,description,download_url,domain],i)=>({id:'official-game:'+i,name,category:'O‘yin',description,version:'Rasmiy',icon:'https://www.google.com/s2/favicons?domain='+domain+'&sz=128',download_url,download_type:'link',source:'Rasmiy sayt',featured:i<8}));
 let fdroidCache={at:0,items:[termuxFallback,...fallbackFdroidApps]},fdroidFetch=null;
 function getFdroidApps(){
   if(Date.now()-fdroidCache.at>1800000&&!fdroidFetch){
@@ -97,7 +110,7 @@ function getFdroidApps(){
 }
 const loginLimit=rateLimit({windowMs:15*60*1000,limit:8,standardHeaders:true,legacyHeaders:false});
 function admin(req,res,next){const t=(req.headers.authorization||'').replace(/^Bearer /,'');if(!sessions.has(t)||sessions.get(t)<Date.now()){sessions.delete(t);return res.status(401).json({error:'Admin sifatida qayta kiring'});}next();}
-app.get('/api/apps',async(req,res)=>{const q=(req.query.q||'').toLowerCase(),c=req.query.category||'';let catalog=[...apps,...await getFdroidApps()];if(req.query.admin!=='1')catalog=catalog.filter(a=>a.download_type==='apk');res.json(catalog.filter(a=>(!q||a.name.toLowerCase().includes(q)||a.description.toLowerCase().includes(q))&&(!c||a.category===c)).sort((a,b)=>Number(b.featured)-Number(a.featured)||a.name.localeCompare(b.name)));});
+app.get('/api/apps',async(req,res)=>{const q=(req.query.q||'').toLowerCase(),c=req.query.category||'';let catalog=[...apps,...await getFdroidApps(),...curatedGames];if(req.query.admin!=='1')catalog=catalog.filter(a=>a.download_type==='apk'||a.category==='O‘yin');res.json(catalog.filter(a=>(!q||a.name.toLowerCase().includes(q)||a.description.toLowerCase().includes(q))&&(!c||a.category===c)).sort((a,b)=>Number(b.featured)-Number(a.featured)||a.name.localeCompare(b.name)));});
 app.get('/api/catalog/status',async(req,res)=>{const items=await getFdroidApps();res.json({source:'F-Droid main',count:items.length,active:items.filter(x=>!x.archived).length,archived:items.filter(x=>x.archived).length,apps:items.filter(x=>x.category!=='O‘yin').length,games:items.filter(x=>x.category==='O‘yin').length,updatedAt:fdroidCache.at||null});});
 app.post('/api/admin/login',loginLimit,(req,res)=>{if(req.body.password!==process.env.ADMIN_PASSWORD)return res.status(401).json({error:'Parol noto‘g‘ri'});const t=crypto.randomBytes(32).toString('hex');sessions.set(t,Date.now()+12*60*60*1000);res.json({token:t});});
 app.post('/api/admin/logout',admin,(req,res)=>{sessions.delete((req.headers.authorization||'').replace(/^Bearer /,''));res.json({ok:true});});
